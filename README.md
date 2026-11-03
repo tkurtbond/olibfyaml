@@ -30,8 +30,17 @@ make            # the modules, tests and examples, into build/
 make test       # every test, halt test and example
 make valgrind   # the tests under valgrind, with strict leak checks
 make bench      # benchmarks; see bench/
+make install    # copy the modules to VOC_OBERON_MODULES
+make uninstall  # remove them from VOC_OBERON_MODULES
 make clean
 ```
+
+`make install` copies `FyThin.Mod`, `Fyaml.Mod` and `FyamlStreams.Mod` to
+the first directory in `VOC_OBERON_MODULES`, a colon-separated list of
+directories (default `/usr/local/sw/versions/oberon/voc/include`). Other
+repos don't keep a copy: their makefiles find the modules through `vpath`
+in that list, and voc builds them into their own build directories, as
+below.
 
 ## Using it
 

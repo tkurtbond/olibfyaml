@@ -8,6 +8,11 @@
 # Targets are the .o files, not the .sym files: voc leaves an unchanged
 # .sym untouched (old mtime), so a .sym target would never look up to
 # date and would recompile on every make. gcc rewrites the .o each time.
+#
+# make install copies the library's modules to the first directory in
+# VOC_OBERON_MODULES (a colon-separated list), where other repos' makefiles
+# find them; make uninstall removes them. voc does not search that list, so
+# an installed copy cannot get into this build.
 
 VOC      ?= /usr/local/sw/versions/voc/git/bin/voc
 VOCFLAGS := -OC            # size model: decided in PLAN.md; never mix models
@@ -17,6 +22,9 @@ VALGRIND ?= valgrind --leak-check=full --show-leak-kinds=definite,indirect --err
 export LDLIBS := $(shell pkg-config --libs libfyaml)
 
 BUILD := build
+
+VOC_OBERON_MODULES ?= /usr/local/sw/versions/oberon/voc/include/
+INSTALLDIR = $(firstword $(subst :, ,$(VOC_OBERON_MODULES)))
 
 # Library modules, in import order.
 LIBMODS := FyThin Fyaml FyamlStreams
@@ -48,7 +56,7 @@ WIDE := $(BUILD)/wide.yaml
 MANYDOCS := $(BUILD)/manydocs.yaml
 RUNS ?= 10
 
-.PHONY: all lib tests test valgrind bench clean
+.PHONY: all lib tests test valgrind bench install uninstall clean
 
 all: lib tests
 
@@ -144,6 +152,15 @@ valgrind: tests
 	  grep -E 'ERROR SUMMARY|lost:|reachable:' $(BUILD)/$$t.vg; \
 	  grep -q '$(REACHABLE)' $(BUILD)/$$t.vg || { echo "FAIL - $$t: expected '$(REACHABLE)'"; status=1; }; \
 	done; exit $$status
+
+# Install only modules that compile.
+install: lib
+	install -d $(INSTALLDIR)
+	install -m 644 $(LIBMODS:%=src/%.Mod) $(INSTALLDIR)
+
+# Remove what make install copied, and only that.
+uninstall:
+	rm -f $(LIBMODS:%=$(INSTALLDIR)/%.Mod)
 
 clean:
 	rm -rf $(BUILD)

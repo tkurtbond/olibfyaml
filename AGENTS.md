@@ -44,6 +44,8 @@ make            # library, test programs and examples, into build/
 make test       # every test (from test/), halt test, and example (from examples/)
 make valgrind   # the test programs, each under valgrind
 make bench      # benchmarks (bench/); not part of `make` or `make test`
+make install    # copy the library's modules to VOC_OBERON_MODULES
+make uninstall  # remove them from VOC_OBERON_MODULES
 make clean      # rm -rf build
 ```
 
