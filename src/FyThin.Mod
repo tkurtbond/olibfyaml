@@ -106,6 +106,8 @@ PROCEDURE -parseLoadDocument(fyp: Parser): Document
   "(ADDRESS)fy_parse_load_document((struct fy_parser*)fyp)";
 PROCEDURE -parserDestroy(fyp: Parser) "fy_parser_destroy((struct fy_parser*)fyp)";
 PROCEDURE -diagGotError(diag: Diag): BOOLEAN "(BOOLEAN)fy_diag_got_error((struct fy_diag*)diag)";
+PROCEDURE -parserGetStreamError(fyp: Parser): BOOLEAN
+  "(BOOLEAN)fy_parser_get_stream_error((struct fy_parser*)fyp)";
 
 (* A parser for a stream of "---"-separated documents; 0 on failure. *)
 PROCEDURE ParserCreate*(resolve: BOOLEAN; diag: Diag): Parser;
@@ -136,10 +138,12 @@ PROCEDURE ParserSetInputStdin*(fyp: Parser; name: SYSTEM.ADDRESS): SYSTEM.INT32;
 BEGIN RETURN parserSetInputStdin(fyp, name)
 END ParserSetInputStdin;
 
-(* The next document, or 0 at the end or on an error: DiagGotError
-   tells them apart. After an error every later call returns 0 too;
-   libfyaml can't resync to the documents after a malformed one
-   (confirmed live; alibfyaml found even fy_parser_reset doesn't). *)
+(* The next document, or 0 at the end or on an error:
+   ParserGetStreamError tells them apart (DiagGotError alone misses a
+   resolve failure: LIBFYAML-ISSUES.md, issue 2). After an error
+   every later call returns 0 too; libfyaml can't resync to the
+   documents after a malformed one (confirmed live; alibfyaml found
+   even fy_parser_reset doesn't). *)
 PROCEDURE ParseLoadDocument*(fyp: Parser): Document;
 BEGIN RETURN parseLoadDocument(fyp)
 END ParseLoadDocument;
@@ -147,6 +151,13 @@ END ParseLoadDocument;
 PROCEDURE ParserDestroy*(fyp: Parser);
 BEGIN parserDestroy(fyp)
 END ParserDestroy;
+
+(* TRUE once loading a document failed, a syntax error or a resolve
+   failure (an undefined alias, a cyclic reference); FALSE at a clean
+   end. Sticky (confirmed live). *)
+PROCEDURE ParserGetStreamError*(fyp: Parser): BOOLEAN;
+BEGIN RETURN parserGetStreamError(fyp)
+END ParserGetStreamError;
 
 (* TRUE once an error was reported to diag; sticky. *)
 PROCEDURE DiagGotError*(diag: Diag): BOOLEAN;
