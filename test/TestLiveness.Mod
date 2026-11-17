@@ -19,6 +19,20 @@ BEGIN
   Heap.GC(TRUE)
 END Churn;
 
+(* Collects, then fills small blocks of many sizes with junk, so
+   small freed memory is reused and overwritten: an allocator may keep small blocks apart
+   from large ones (poc's does), and Churn's
+   1000-byte blocks never reuse a small one. *)
+PROCEDURE SmallChurn;
+  VAR i, k: INTEGER; j: Junk;
+BEGIN
+  Heap.GC(TRUE);
+  FOR i := 1 TO 2000 DO
+    NEW(j, 8 + i MOD 200);
+    FOR k := 0 TO SHORT(LEN(j^)) - 1 DO j[k] := "x" END
+  END
+END SmallChurn;
+
 (* text is a value parameter here, so voc copies it into this frame's
    alloca memory -- exactly the spike's failure case, if ParseString
    did not copy it into a buffer of its own. *)
@@ -71,7 +85,7 @@ BEGIN
      as long as the Document *)
   d := Fyaml.NewDocument();
   n := StyledValueParam(d, "#styled, from a dead frame");
-  Churn; Churn;
+  Churn; SmallChurn;
   Check.Check(n.ScalarIs("#styled, from a dead frame"), "a styled scalar reads correctly after GCs");
   d.Close;
 

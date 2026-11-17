@@ -869,8 +869,12 @@ depends on when the GC ran, so the first control passed `TestStyles`
 on one run and ran away on another. So `TestStyles` now reads each
 node's text back before emitting and emits only if all match, which
 turns the `alloca` control into `FAIL`s; and `TestLiveness` makes a
-styled scalar from a value parameter, churns the GC, and checks its
-text, which fails reliably with the source not kept. Run such
+styled scalar from a value parameter, collects, overwrites small freed
+blocks (`SmallChurn`), and checks its text, which fails with the
+source not kept, in voc and poc. `SmallChurn` is needed for poc, whose
+allocator keeps a free list per small block size, so the 1000-byte
+blocks of `Churn` never reuse the small source there; with `Churn`
+alone, polibfyaml passed this control. Run such
 controls under a memory cap (`systemd-run --user --scope -p
 MemoryMax=1G`).
 
