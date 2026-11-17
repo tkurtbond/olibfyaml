@@ -810,6 +810,70 @@ document (`HasNext`, then the end), a cycle (`Next`), and an
 undefined alias with `NoResolve`, which is no error. Control: with the
 old check, the undefined-alias check failed.
 
+### Scalar styles `[done]`
+
+Ported 2026-11-17 from polibfyaml (its `b9b7c69`, added there
+2026-10-09 for ova_cg_po, which saves characters through the
+emitter). **The installed libfyaml writes a `CreateScalar`'s text
+plain even where plain YAML doesn't hold it**, in every emit mode. A
+scratch probe of awkward texts, each in a one-pair mapping, emitted in
+block mode and parsed again:
+
+- read back as something else: `#x` (a comment: null), `!x` (a tag),
+  ` x` and `x ` (the blanks dropped);
+- don't parse at all: `- x`, `-`, `? x`, `|x`, `>x`, `%x`, `@x`,
+  `` `x ``, `'x`, `"x`;
+- right: `x: y`, `[x`, `{x`, `&x`, `*x`, `a #x`, `null`, `~`, the
+  empty text, multi-line text (written double-quoted with `\n`).
+
+Flow mode quoted `#x` but still dropped the blanks. libfyaml's source
+(`fy_emit_scalar_style_from_analysis`) chooses plain from a text
+analysis, which gets these wrong for a created scalar. libfyaml 0.8
+has no public way to set a node's style (`fy_node_get_style` only).
+
+What works (scratch C program, then `TestStyles`): **a scalar parsed
+from YAML text keeps its style through the emitter**, in block,
+default, original and flow modes. So `CreateStyledScalar(text, style)`
+writes the text as YAML itself (double-quoted with escapes, a literal
+block, or plain when `PlainSafe` says it surely reads back the same)
+and parses it with `fy_node_build_from_string` into the document.
+That function keeps pointing into its input (valgrind: reads of the
+freed source when the scalar is used), so the Document keeps each
+source, a heap `String`, with its node, until `Close`, as it keeps
+`ParseString`'s buffer; `text` itself, a value parameter in voc's
+`alloca` memory, is never handed to libfyaml. The node's location is
+in its own source, so it reports none. Text that isn't UTF-8 goes to
+`CreateScalar`: no YAML style holds it, and libfyaml prints a
+diagnostic when asked to parse it.
+
+The literal block always gives its indentation (`|2`), so a first
+line starting with blanks keeps them, and its chomping keeps the
+trailing line feeds exactly (`|2-` none, `|2` one, `|2+` more); the
+emitter writes its own indicator back (`|`, `|2`, `|-`...).
+
+`TestStyles` round-trips 60 texts (the probe's, and escapes, control
+characters, NEL/LS/PS/BOM, and lines for the block) in each of the
+three styles and five emit modes, checks the style chosen for some and
+one document's exact output, and ends with a tripwire that fails once
+libfyaml writes `CreateScalar`'s `#x` right. `HaltStyle` checks
+`AssertStyle` (65). polibfyaml showed these fail with seven planted
+bugs.
+
+The port added two lifetime checks, from two voc controls (confirmed
+live). With the source not kept (`d.sources[i] := NIL`), or with
+libfyaml handed the `alloca` copy of `text`, **libfyaml's emitter
+doesn't give wrong text: `fy_emit_document_to_string` allocates
+without bound** (gdb, `alloca` control: in `do_buffer_output`; the
+other grew to 8 GB in about two minutes and was stopped by hand), and whether the freed source has been reused yet
+depends on when the GC ran, so the first control passed `TestStyles`
+on one run and ran away on another. So `TestStyles` now reads each
+node's text back before emitting and emits only if all match, which
+turns the `alloca` control into `FAIL`s; and `TestLiveness` makes a
+styled scalar from a value parameter, churns the GC, and checks its
+text, which fails reliably with the source not kept. Run such
+controls under a memory cap (`systemd-run --user --scope -p
+MemoryMax=1G`).
+
 ## Open questions
 
 - ~~**Module names.**~~ Decided: `FyThin`/`Fyaml`/`FyamlStreams`.

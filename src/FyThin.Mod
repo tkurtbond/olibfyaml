@@ -442,6 +442,8 @@ PROCEDURE -documentInsertAt(fyd: Document; path, len: SYSTEM.ADDRESS; fyn: Node)
   "(INT32)fy_document_insert_at((struct fy_document*)fyd, (const char*)path, (size_t)len, (struct fy_node*)fyn)";
 PROCEDURE -nodeCreateScalarCopy(fyd: Document; data, size: SYSTEM.ADDRESS): Node
   "(ADDRESS)fy_node_create_scalar_copy((struct fy_document*)fyd, (const char*)data, (size_t)size)";
+PROCEDURE -nodeBuildFromString(fyd: Document; str, len: SYSTEM.ADDRESS): Node
+  "(ADDRESS)fy_node_build_from_string((struct fy_document*)fyd, (const char*)str, (size_t)len)";
 PROCEDURE -nodeCreateSequence(fyd: Document): Node
   "(ADDRESS)fy_node_create_sequence((struct fy_document*)fyd)";
 PROCEDURE -nodeCreateMapping(fyd: Document): Node
@@ -490,6 +492,13 @@ END DocumentInsertAt;
 PROCEDURE NodeCreateScalarCopy*(fyd: Document; data, size: SYSTEM.ADDRESS): Node;
 BEGIN RETURN nodeCreateScalarCopy(fyd, data, size)
 END NodeCreateScalarCopy;
+
+(* A node parsed from len bytes of YAML at str, unattached, in fyd; 0 if
+   they don't parse. libfyaml keeps pointing into str (confirmed with
+   valgrind, freeing it at once): str must outlive fyd. *)
+PROCEDURE NodeBuildFromString*(fyd: Document; str, len: SYSTEM.ADDRESS): Node;
+BEGIN RETURN nodeBuildFromString(fyd, str, len)
+END NodeBuildFromString;
 
 PROCEDURE NodeCreateSequence*(fyd: Document): Node;
 BEGIN RETURN nodeCreateSequence(fyd)

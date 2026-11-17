@@ -27,6 +27,12 @@ PROCEDURE ParseValueParam(text: ARRAY OF CHAR): Fyaml.Document;
 BEGIN RETURN Fyaml.ParseString(text, err)
 END ParseValueParam;
 
+(* A styled scalar made from a value parameter, as above; the YAML
+   CreateStyledScalar writes for it is referenced only by d. *)
+PROCEDURE StyledValueParam(d: Fyaml.Document; text: ARRAY OF CHAR): Fyaml.Node;
+BEGIN RETURN d.CreateStyledScalar(text, Fyaml.StyleDoubleQuoted)
+END StyledValueParam;
+
 (* Returns only a node: its Document is then referenced only by it. *)
 PROCEDURE OnlyANode(): Fyaml.Node;
   VAR d: Fyaml.Document; err: Fyaml.Error; root: Fyaml.Node;
@@ -59,6 +65,14 @@ BEGIN
   Churn;
   n := d.Root(); n := n.ByPath("/a/b");
   Check.Check(n.ScalarIs("hello"), "document parsed from a dead value-parameter frame reads correctly");
+  d.Close;
+
+  (* CreateStyledScalar's source, which libfyaml points into, lives
+     as long as the Document *)
+  d := Fyaml.NewDocument();
+  n := StyledValueParam(d, "#styled, from a dead frame");
+  Churn; Churn;
+  Check.Check(n.ScalarIs("#styled, from a dead frame"), "a styled scalar reads correctly after GCs");
   d.Close;
 
   (* A reachable Node keeps its Document (and its buffer) alive *)
